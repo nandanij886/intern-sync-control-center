@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIMS · Virtual Internship Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span> VIMS <small>Virtual Internship Management System</small></div>
+  <nav>
+    <button class="tab active" data-tab="dash">Control room</button>
+    <button class="tab" data-tab="intern">Intern</button>
+    <button class="tab" data-tab="mentor">Mentor</button>
+  </nav>
+  <div class="clock">tick <b id="tick">0</b> · quantum <b id="quantum">2</b></div>
+</header>
+
+<main>
+<!-- ================= DASHBOARD ================= -->
+<section id="dash" class="view active">
+  <div class="toolbar">
+    <button id="btnDemo">Load demo (5 sessions)</button>
+    <button id="btnBackup" class="ghost">Run backup script</button>
+    <span id="toast"></span>
+  </div>
+
+  <div class="grid">
+    <div class="card span2">
+      <h3>CPU · mentor/server time</h3>
+      <div id="cpu" class="cpu">idle</div>
+      <div class="label">Ready queue (Round Robin)</div><div id="ready" class="chips"></div>
+      <div class="label">Gantt chart (last 40 ticks)</div><div id="gantt" class="gantt"></div>
+      <div class="stats">
+        <div><b id="sCompleted">0</b><span>completed</span></div>
+        <div><b id="sWait">0</b><span>avg waiting</span></div>
+        <div><b id="sTA">0</b><span>avg turnaround</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Resources · Banker's algorithm</h3>
+      <div id="res"></div>
+      <div class="note" id="resNote"></div>
+    </div>
+
+    <div class="card span3">
+      <h3>Sessions (PCB table)</h3>
+      <div class="scroll"><table id="sessions"><thead><tr>
+        <th>PID</th><th>Intern</th><th>State</th><th>Prio</th><th>Progress</th><th>Wait</th><th>Online</th><th>Deadline</th><th>Plagiarism</th>
+      </tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="card span3">
+      <h3>Scheduling algorithm
+        <select id="algo"><option value="RR">Round Robin + priority</option><option value="FCFS">FCFS</option><option value="SJF">SJF</option></select></h3>
+      <div class="scroll"><table id="cmp"><thead><tr><th>Algorithm (same sessions, same arrival)</th><th>Avg waiting</th><th>Avg turnaround</th></tr></thead><tbody></tbody></table></div>
+      <div class="note">Round Robin gives fairness, FCFS is simplest, SJF gives the lowest waiting time. Switch the algorithm before loading the demo to compare live results with this table.</div>
+    </div>
+
+    <div class="card span2">
+      <h3>Memory · paging
+        <select id="policy"><option>LRU</option><option>FIFO</option></select></h3>
+      <div id="frames" class="frames"></div>
+      <div class="note" id="memNote"></div>
+    </div>
+
+    <div class="card">
+      <h3>Threads &amp; queue</h3>
+      <div id="threads"></div>
+      <div class="label">Submission buffer (semaphores)</div><div id="queue" class="bar"><i></i></div>
+      <div class="note" id="thNote"></div>
+    </div>
+
+    <div class="card">
+      <h3>Disk scheduling</h3>
+      <div id="disk"></div>
+    </div>
+
+    <div class="card span2">
+      <h3>System log</h3>
+      <pre id="log" class="log"></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INTERN ================= -->
+<section id="intern" class="view">
+  <div class="grid">
+    <div class="card">
+      <h3>Start an internship session</h3>
+      <label>Your name<input id="iName" placeholder="e.g. Aarav"></label>
+      <label>Task<input id="iTask" placeholder="e.g. Build a login page"></label>
+      <label>Work needed (time units)<input id="iBurst" type="number" min="1" max="30" value="5"></label>
+      <label>Priority<select id="iPrio"><option value="1">1 · High</option><option value="2" selected>2 · Normal</option><option value="3">3 · Low</option></select></label>
+      <label>Deadline (time units from now)<input id="iDead" type="number" min="5" max="600" value="60"></label>
+      <button id="btnCreate">Log in &amp; start session</button>
+      <div class="note" id="iMsg"></div>
+    </div>
+    <div class="card span2">
+      <h3>My sessions</h3>
+      <div id="mine" class="chips"></div>
+      <div id="editor" style="display:none">
+        <div class="label" id="editorTitle"></div>
+        <textarea id="draft" rows="9" placeholder="Write your task report here. It is autosaved by the autosave thread."></textarea>
+        <div class="note" id="draftMsg"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= MENTOR ================= -->
+<section id="mentor" class="view">
+  <div class="card">
+    <h3>Submissions waiting for feedback</h3>
+    <div id="pending"></div>
+  </div>
+</section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
