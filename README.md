@@ -1,99 +1,67 @@
-# INTERNSYNC · Virtual Internship Management System
-Operating Systems PBL (CCSE0303A) · Group 65 · **Java backend + React (Lovable) frontend**
+# VIMS – Virtual Internship Management System
+Operating Systems PBL (CCSE0303A) · Group 65 · plain Java (no framework, no external library) + website + shell scripts
 
-Every internship session is treated as an operating-system **process**. Mentor/server time is the **CPU**. The website shows the real OS logic that runs in Java.
+## Run
+    ./run.sh            (Linux / Mac)       or      run.bat   (Windows)
+Then open http://localhost:8081  (needs JDK 17 or newer, and `bash` for the scripts; on Windows use Git Bash/WSL for the scripts, the Java part works without them).
+Slow down / speed up the system clock: `java -Dtick=500 -cp out vims.Main` (tick in milliseconds, default 1000).
 
-```mermaid
-flowchart TD
-  U[User: Intern / Mentor / Admin] --> F[React frontend · frontend/]
-  F -- "REST + JSON (fetch every second)" --> A[Java HTTP server · WebServer.java]
-  A --> S[Scheduler · RR / FCFS / SJF / priority levels]
-  A --> W[Worker threads · clock, attendance, autosave, plagiarism, logger]
-  A --> R[ResourceManager · semaphores + Banker's algorithm]
-  A --> M[MemoryManager · paging FIFO / LRU]
-  A --> FS[FileManager · folders, permissions, disk scheduling]
-  S --- P[Session = PCB]
-  W --- Q[SubmissionQueue · producer-consumer]
-  S --> D[(data/state.txt · persistence)]
-  FS --> D
-  A --> SH[scripts/*.sh · onboard, backup, log summary]
-```
-
-## Folder structure
-```
-backend/    Java server (no framework, no library)   src/vims/*.java, scripts/, web/ (small built-in dashboard)
-frontend/   React + TanStack Start site made in Lovable, now connected to the backend
-README.md   this file
-```
-
-## How to run (two terminals)
-**1. Backend** (needs JDK 17+)
-```
-cd backend
-run.bat        (Windows)      or      ./run.sh      (Linux / Mac)
-```
-It prints `Server started: open http://localhost:8081`. The API is at http://localhost:8081/api/state.
-
-**2. Frontend** (needs Node.js 20+; `npm` comes with it)
-```
-cd frontend
-npm install
-npm run dev
-```
-Open the address that Vite prints. The top bar shows **JAVA BACKEND ONLINE** when the connection works; otherwise the pages show demo data and a warning.
-If your backend runs on another address, copy `.env.example` to `.env` and change `VITE_API_URL`.
-
-## Demo roles (no passwords)
-On the login page choose **Intern**, **Mentor** or **Admin**, then *Demo Login*.
-| Role | Menu |
-|---|---|
-| Intern | Sessions (only own), Process Monitor, Files, Logs |
-| Mentor | Overview, Sessions, Mentors (review queue), Synchronization, Logs |
-| Admin | everything: Scheduler, Threads, Deadlock, Memory, File System, Backups … |
-
-## Which page shows which OS concept (and which Java file does the work)
-| Page | OS concept | Java file |
+## How OS concepts map to files
+| OS concept | File | What it does |
 |---|---|---|
-| Sessions / Process Monitor | process, PCB, process states | `Session.java`, `SessionState.java` |
-| CPU Scheduler | Round Robin, FCFS, SJF, priority, Gantt, waiting/turnaround | `Scheduler.java`, `AlgorithmComparison.java` |
-| Threads | multithreading (5 worker threads) | `Workers.java`, `Logger.java` |
-| Synchronization | mutex, semaphores, bounded buffer | `SubmissionQueue.java`, `ResourceManager.java` |
-| Deadlock | Banker's algorithm, safe sequence | `ResourceManager.java`, `Banker.java` |
-| Memory | paging, frames, FIFO / LRU, page faults | `MemoryManager.java`, `PagingSimulator.java` |
-| File System | directories, rwx permissions, disk scheduling (FCFS/SSTF) | `FileManager.java` |
-| Backups | shell scripting | `scripts/*.sh` |
-| Mentors | producer–consumer, review resources | `Scheduler.java`, `Workers.java` |
-| (restart safe) | persistent storage | `Persistence.java` |
+| Process + PCB, process states | `Session.java`, `SessionState.java` | each intern session is a process: LOGIN → WORKING → AWAITING_FEEDBACK → SUBMITTED |
+| CPU scheduling (Round Robin + Priority + Multilevel queue + aging) | `Scheduler.java` | urgent deadline = level 0, priority 1 = level 1, others = level 2; Round Robin inside each level |
+| Interrupt handling | `Scheduler.java` | deadline expiry interrupts the session and auto-submits the work |
+| Multithreading | `Workers.java` | clock, attendance timer, autosave and plagiarism-check threads |
+| Synchronization (mutex, semaphores, producer–consumer) | `SubmissionQueue.java`, `FileManager.java` | bounded buffer with 2 semaphores + mutex; one lock per intern folder |
+| Deadlock avoidance (Banker's algorithm) | `ResourceManager.java` | mentor slots / review rooms / server threads are granted only in a SAFE state |
+| Memory management (paging, FIFO / LRU) | `MemoryManager.java` | 6 frames, 3 pages per session, page faults and replacement |
+| File system, protection, disk scheduling | `FileManager.java` | folder per intern, role based access, FCFS vs SSTF seek distance |
+| Shell scripting | `scripts/*.sh` | `onboard.sh` (new intern folder), `backup.sh` (tar.gz + keep last 5), `logsummary.sh` |
+| Scheduling comparison (RR, FCFS, SJF, Priority) | `AlgorithmComparison.java`, `Scheduler.java` | switch the live algorithm on the dashboard; table compares average waiting / turnaround on the same sessions |
+| Self test | `SelfTest.java` | 22 checks (algorithms, Banker, paging, synchronization, persistence, access, files): `java -cp out vims.SelfTest` |
+| Persistent storage | `Persistence.java` | every session is saved to `data/state.txt` after each tick (temp file + move, so it is crash safe) and loaded again on start; logs are kept in `data/logs/system.log` |
+| System calls / web layer | `WebServer.java`, `web/` | built-in Java HTTP server + dashboard |
 
-## Viva demo script (5 minutes)
-1. Login as **Admin** → Sessions → *Load demo (5 sessions)*.
-2. CPU Scheduler → Round Robin, quantum 2 → average waiting **11.2**, turnaround **15.6** (calculated by Java). Change to SJF (6.0 / 10.4) and show the comparison table.
-3. Deadlock → *Run Safety Check*; run the textbook example (safe sequence P1 → P3 → P4 → P0 → P2). Create 5 HIGH priority sessions to see a request refused as unsafe.
-4. Memory → switch FIFO / LRU and run the simulator: FIFO 15 faults, LRU 12 faults (3 frames).
-5. Login as **Mentor** → Mentors → view a submission, plagiarism %, give feedback.
-6. Files → folders and permissions; Backups → run `backup.sh`. Stop the Java server, start it again: everything is still there.
+## Quick demo for the viva
+1. Control room → **Load demo** : 5 sessions (bursts 5, 3, 8, 2, 4), Round Robin, quantum 2 → average waiting 11.2, average turnaround 15.6 (same test as Progress Report II).
+2. Intern tab → create a session with a short deadline (e.g. 8) and a long burst → watch the **urgent** flag and the **interrupt / auto-submit** in the log.
+3. Create 5 sessions with priority 1 → the log shows `BANKER refused …` (unsafe state avoided).
+4. Mentor tab → wait for the plagiarism check, then give feedback → session becomes SUBMITTED and resources are released.
+5. Change page replacement FIFO ↔ LRU and compare page faults. Press **Run backup script**, then `./scripts/logsummary.sh`.
+
+
+## Persistence
+Stop the server (Ctrl+C) and start it again: all sessions, their states and the clock continue where they stopped. A session that was running at that moment simply gets a fresh time quantum. To start from zero delete the `data` folder.
+
 
 ## Tests
-```
-cd backend
-./run.sh            (compiles into backend/out; stop it with Ctrl+C)
-java -cp out vims.SelfTest      → 22 checks must print PASS
-```
+After compiling (`./run.sh` creates the `out` folder) run `java -cp out vims.SelfTest`. All 22 checks must print PASS.
 
-## API (all in `backend/README.md`)
-`/api/state`, `/api/sessions`, `/api/sessions/{pid}`, `/api/simulate`, `/api/banker`, `/api/paging`, `/api/files`, `/api/algorithm`, `/api/policy`, `/api/feedback`, `/api/backup`, `/api/login` …
+## Connecting another front end (e.g. the Lovable app)
+The server sends CORS headers, so a separately running front end can call `http://localhost:8081/api/state`, `/api/sessions`, `/api/demo`, `/api/draft`, `/api/feedback`, `/api/algorithm`, `/api/policy`, `/api/backup` and `/api/submission`.
 
-## Put it on GitHub (first time)
-```
-git init
-git add .
-git commit -m "INTERNSYNC: Java backend + React frontend"
-git branch -M main
-git remote add origin https://github.com/<your-username>/virtual-internship-management-system.git
-git push -u origin main
-```
-Later changes: `git add .` → `git commit -m "what you changed"` → `git push`.
-Never commit passwords or keys (`.env` is ignored by `.gitignore`).
 
-## Team contributions
-Fill in from your Progress Report: Nandani (team leader, scheduling), Priyanka (research, deadlock/memory), Priti (documentation, shell scripts), Rishabh (design, PCB/files), Rehan (threads, testing).
+## API reference (all answers are JSON unless noted; POST bodies are form fields)
+| Method + path | Fields | What it returns |
+|---|---|---|
+| GET `/api/state` | | everything the dashboard shows (scheduler, resources, memory, disk, threads, queue, comparison, logs) |
+| GET `/api/sessions` | | all sessions (PCBs) |
+| GET `/api/sessions/{pid}` | | PCB of one session (404 if it does not exist) |
+| POST `/api/sessions` | `intern, task, burst, priority, deadline` | creates a session, returns its pid |
+| POST `/api/draft` | `pid, user, text` | saves the intern's draft (403 for other users) |
+| GET `/api/submission` | `pid, role, user` | submitted text (403 if the role is not allowed) |
+| POST `/api/feedback` | `pid, role=mentor, comment` | mentor feedback, session becomes SUBMITTED |
+| POST `/api/algorithm` | `name=RR/FCFS/SJF` | switches the live scheduler |
+| POST `/api/simulate` | `algo=FCFS/SJF/PRIORITY/RR/RRP, quantum, bursts, priorities` | Gantt segments, waiting/turnaround/completion per process, averages, comparison of all algorithms |
+| POST `/api/banker` | none = live system; or `available, max, alloc` (rows separated by `;`) | safe / unsafe and the safe sequence |
+| POST `/api/paging` | `refs, frames, algo=FIFO/LRU/BOTH` | page faults, hits and every step |
+| POST `/api/policy` | `name=FIFO/LRU` | page replacement of the live memory manager |
+| GET `/api/files` | | `/interns` tree with rwx permissions for intern, mentor and admin |
+| POST `/api/login` | `role=intern/mentor/admin, name` | demo login (no password): screens allowed for the role |
+| POST `/api/demo` | | creates the 5 demo sessions |
+| POST `/api/backup` | | runs `scripts/backup.sh` |
+
+Examples:
+    curl -X POST -d "algo=RR&quantum=2&bursts=5,3,8,2,4" http://localhost:8081/api/simulate
+    curl -X POST -d "available=3,3,2&max=7,5,3;3,2,2;9,0,2;2,2,2;4,3,3&alloc=0,1,0;2,0,0;3,0,2;2,1,1;0,0,2" http://localhost:8081/api/banker
